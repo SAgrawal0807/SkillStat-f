@@ -1,82 +1,349 @@
+import { useEffect, useRef } from "react";
+import { animate, stagger } from "animejs";
+
 import GapChart from "./GapChart";
-import { ArrowRight, CheckCircle2, ShieldCheck, Zap } from "lucide-react";
+import AnimatedBackground from "./AnimatedBackground";
+
+import {
+  ArrowRight,
+  CheckCircle2,
+  ShieldCheck,
+  Zap,
+} from "lucide-react";
 
 interface HeroProps {
   revealed: boolean;
 }
 
 export default function Hero({ revealed }: HeroProps) {
+  const heroRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!revealed || !heroRef.current) return;
+
+    const items = Array.from(
+      heroRef.current.querySelectorAll<HTMLElement>(".hero-item")
+    );
+
+    if (items.length === 0) return;
+
+    animate(items, {
+      translateY: [25, 0],
+      opacity: [0, 1],
+      duration: 800,
+      delay: stagger(100),
+      ease: "outExpo",
+    });
+  }, [revealed]);
+
   return (
-    <section className="container-content grid items-center gap-12 pb-20 pt-36 md:grid-cols-[1.1fr,0.9fr] md:pb-28 md:pt-44">
-      {/* Left Column: Headline & Value Proposition */}
+    <section
+      ref={heroRef}
+      className="
+        relative
+        isolate
+        min-h-screen
+        overflow-hidden
+        bg-paper
+      "
+    >
+      <AnimatedBackground />
+
       <div
-        className={`transition-all duration-700 ${
-          revealed ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
-        }`}
-        style={{ transitionDelay: revealed ? "120ms" : "0ms" }}
-      >
-        {/* Modern Pill Badge */}
-        <div className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50/70 px-3.5 py-1 text-xs font-semibold text-brand-600 shadow-2xs backdrop-blur-xs">
-          <span className="flex h-2 w-2 rounded-full bg-brand-600 animate-pulse" />
-          <span>SkillStat 2.0 • Autonomous Competency Intelligence</span>
-        </div>
+        className="
+          pointer-events-none
+          absolute
+          -left-40
+          top-20
+          -z-10
+          h-[420px]
+          w-[420px]
+          rounded-full
+          bg-indigo-300/20
+          blur-[120px]
+        "
+      />
 
-        {/* Hero Title */}
-        <h1 className="mt-5 font-display text-[40px] font-bold leading-[1.08] tracking-tight text-ink md:text-[54px]">
-          Close the competency gap before it costs you.
-        </h1>
-
-        {/* Subtitle / Description */}
-        <p className="mt-5 max-w-[48ch] text-[17px] leading-relaxed text-ink-soft">
-          SkillStat ingests GitHub commits, sprint tickets, and manager reviews
-          to generate a continuous, predictive graph of team capabilities.
-          Pinpoint critical skill deficits and automate learning pathways in
-          real-time.
-        </p>
-
-        {/* Action Buttons */}
-        <div className="mt-8 flex flex-wrap items-center gap-4">
-          <a
-            href="#get-started"
-            className="group inline-flex items-center gap-2 rounded-full bg-ink px-6 py-3.5 text-[15px] font-semibold text-paper shadow-md transition-all hover:bg-brand-600 hover:shadow-lg hover:shadow-brand-600/25 active:scale-95"
-          >
-            <span>Start Free Assessment</span>
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </a>
-
-          <a
-            href="#how-it-works"
-            className="inline-flex items-center gap-2 rounded-full border border-line bg-white/80 px-5 py-3.5 text-[15px] font-semibold text-ink-soft transition-all hover:border-ink/30 hover:text-ink hover:bg-white"
-          >
-            <span>See How It Works</span>
-          </a>
-        </div>
-
-        {/* Value Micro-Points */}
-        <div className="mt-9 flex flex-wrap items-center gap-6 border-t border-line/60 pt-6 text-xs text-ink-faint">
-          <span className="inline-flex items-center gap-1.5 font-medium text-ink-soft">
-            <CheckCircle2 className="h-4 w-4 text-accent-emerald" />
-            <span>Zero manual surveys</span>
-          </span>
-          <span className="inline-flex items-center gap-1.5 font-medium text-ink-soft">
-            <Zap className="h-4 w-4 text-brand-600" />
-            <span>Real-time capability tracking</span>
-          </span>
-          <span className="inline-flex items-center gap-1.5 font-medium text-ink-soft">
-            <ShieldCheck className="h-4 w-4 text-indigo-500" />
-            <span>SOC2 Type II & GDPR compliant</span>
-          </span>
-        </div>
-      </div>
-
-      {/* Right Column: Interactive Competency Gap Chart */}
       <div
-        className={`flex justify-center transition-all duration-700 md:justify-end ${
-          revealed ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
-        }`}
-        style={{ transitionDelay: revealed ? "240ms" : "0ms" }}
+        className="
+          pointer-events-none
+          absolute
+          right-[-150px]
+          top-[20%]
+          -z-10
+          h-[500px]
+          w-[500px]
+          rounded-full
+          bg-blue-300/20
+          blur-[140px]
+        "
+      />
+
+      <div
+        className="
+          pointer-events-none
+          absolute
+          bottom-[-200px]
+          left-[40%]
+          -z-10
+          h-[500px]
+          w-[500px]
+          rounded-full
+          bg-violet-300/10
+          blur-[150px]
+        "
+      />
+
+      <div
+        className="
+          container-content
+          grid
+          min-h-screen
+          items-center
+          gap-14
+          pb-20
+          pt-32
+          md:grid-cols-[1.1fr_0.9fr]
+          md:gap-10
+          md:pb-28
+          md:pt-36
+        "
       >
-        <GapChart />
+        <div className="max-w-2xl">
+          <div
+            className="
+              hero-item
+              inline-flex
+              items-center
+              gap-2
+              rounded-full
+              border
+              border-indigo-200
+              bg-indigo-50/70
+              px-4
+              py-1.5
+              text-xs
+              font-semibold
+              text-indigo-600
+              shadow-sm
+              backdrop-blur-md
+            "
+          >
+            <span
+              className="
+                h-2
+                w-2
+                animate-pulse
+                rounded-full
+                bg-indigo-600
+              "
+            />
+
+            SkillStat 2.0
+
+            <span className="text-indigo-400">•</span>
+
+            Autonomous Competency Intelligence
+          </div>
+
+          <h1
+            className="
+              hero-item
+              mt-6
+              max-w-[850px]
+              font-display
+              text-[42px]
+              font-bold
+              leading-[1.05]
+              tracking-[-0.03em]
+              text-ink
+              sm:text-[50px]
+              md:text-[58px]
+              lg:text-[64px]
+            "
+          >
+            Close the{" "}
+            <span className="relative inline-block text-indigo-600">
+              competency gap.
+              <span
+                className="
+                  absolute
+                  -bottom-1
+                  left-0
+                  h-[3px]
+                  w-full
+                  rounded-full
+                  bg-indigo-400/30
+                "
+              />
+            </span>{" "}
+            before it costs you.
+          </h1>
+
+          <p
+            className="
+              hero-item
+              mt-6
+              max-w-[600px]
+              text-[16px]
+              leading-7
+              text-ink-soft
+              md:text-[17px]
+            "
+          >
+            SkillStat ingests GitHub commits, sprint tickets, and manager
+            reviews to generate a continuous, predictive graph of team
+            capabilities. Pinpoint critical skill deficits and automate
+            learning pathways in real-time.
+          </p>
+
+          <div
+            className="
+              hero-item
+              mt-9
+              flex
+              flex-wrap
+              gap-4
+            "
+          >
+            <a
+              href="#get-started"
+              className="
+                group
+                inline-flex
+                items-center
+                gap-2
+                rounded-full
+                bg-ink
+                px-6
+                py-3.5
+                text-[15px]
+                font-semibold
+                text-paper
+                shadow-lg
+                transition-all
+                duration-300
+                hover:-translate-y-1
+                hover:bg-indigo-600
+                hover:shadow-xl
+                hover:shadow-indigo-600/25
+                active:scale-95
+              "
+            >
+              Start Free Assessment
+
+              <ArrowRight
+                className="
+                  h-4
+                  w-4
+                  transition-transform
+                  duration-300
+                  group-hover:translate-x-1
+                "
+              />
+            </a>
+
+            <a
+              href="#how-it-works"
+              className="
+                inline-flex
+                items-center
+                gap-2
+                rounded-full
+                border
+                border-line
+                bg-white/70
+                px-6
+                py-3.5
+                text-[15px]
+                font-semibold
+                text-ink-soft
+                shadow-sm
+                backdrop-blur-md
+                transition-all
+                duration-300
+                hover:-translate-y-1
+                hover:border-indigo-300
+                hover:bg-white
+                hover:text-ink
+              "
+            >
+              See How It Works
+            </a>
+          </div>
+
+          <div
+            className="
+              hero-item
+              mt-10
+              flex
+              flex-wrap
+              gap-x-7
+              gap-y-3
+              border-t
+              border-line/60
+              pt-6
+              text-xs
+            "
+          >
+            <span className="inline-flex items-center gap-1.5 font-medium text-ink-soft">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              Zero manual surveys
+            </span>
+
+            <span className="inline-flex items-center gap-1.5 font-medium text-ink-soft">
+              <Zap className="h-4 w-4 text-indigo-600" />
+              Real-time capability tracking
+            </span>
+
+            <span className="inline-flex items-center gap-1.5 font-medium text-ink-soft">
+              <ShieldCheck className="h-4 w-4 text-violet-500" />
+              SOC2 Type II & GDPR compliant
+            </span>
+          </div>
+        </div>
+
+        <div
+          className="
+            hero-item
+            relative
+            flex
+            items-center
+            justify-center
+            md:justify-end
+          "
+        >
+          <div
+            className="
+              pointer-events-none
+              absolute
+              h-[380px]
+              w-[380px]
+              rounded-full
+              bg-indigo-400/10
+              blur-[100px]
+            "
+          />
+
+          <div
+            className="
+              relative
+              rounded-[2rem]
+              border
+              border-white/70
+              bg-white/50
+              p-4
+              shadow-2xl
+              shadow-indigo-900/5
+              backdrop-blur-xl
+              transition-transform
+              duration-500
+              hover:-translate-y-2
+            "
+          >
+            <GapChart />
+          </div>
+        </div>
       </div>
     </section>
   );
