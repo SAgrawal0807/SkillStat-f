@@ -1,15 +1,13 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+// LoadingOverlay.tsx
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import type { RefObject } from "react";
 import { animate, stagger } from "animejs";
-import {
-  createParticles,
-  createCompetencyNodes,
-  renderAnimeCanvas,
-  type Particle,
-  type CompetencyNode,
-  type SignalPulse,
-  type Shockwave,
-} from "../lib/particles";
 import { HERO_LOCKUP } from "../lib/logoSizes";
 
 type Stage = "assembling" | "revealed" | "docking";
@@ -41,162 +39,43 @@ export default function LoadingOverlay({
   const [cloneRect, setCloneRect] = useState<Rect | null>(null);
   const [progressPercent, setProgressPercent] = useState(0);
 
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const lockupRef = useRef<HTMLDivElement>(null);
   const cloneRef = useRef<HTMLDivElement>(null);
   const logoImageRef = useRef<HTMLImageElement>(null);
 
-  // Animation frame and scene data
-  const sceneState = useRef<{
-    particles: Particle[];
-    nodes: CompetencyNode[];
-    pulses: SignalPulse[];
-    assembleRatio: number;
-    shockwave: Shockwave;
-  }>({
-    particles: [],
-    nodes: [],
-    pulses: [],
-    assembleRatio: 0,
-    shockwave: { radius: 0, maxRadius: 260, alpha: 0, active: false },
+  // Always call the latest onDockingStart/onFinished without needing
+  // them in effect dependency arrays — the parent may (and here,
+  // does) pass a fresh function identity on every render.
+  const callbacksRef = useRef({ onDockingStart, onFinished });
+  useEffect(() => {
+    callbacksRef.current = { onDockingStart, onFinished };
   });
 
-  // 1. Fullscreen Canvas animation setup
+  /*
+   * Main loading animation — runs exactly once per real mount.
+   *
+   * Empty deps on purpose: this must NOT restart just because a
+   * parent re-render changed a prop's identity. In dev, React 18
+   * StrictMode will mount -> cleanup -> mount this once to check
+   * it's safe; the cleanup below cancels that first throwaway run's
+   * timers/animation before they ever fire, so the real run is the
+   * only one that's ever visible. Don't add a "has run" guard here —
+   * it blocks the real run after the throwaway cleanup and leaves
+   * the overlay stuck instead.
+   */
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const counterTarget = { val: 0 };
 
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const updateCanvasSize = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
-      const ctx = canvas.getContext("2d");
-      if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    };
-
-    updateCanvasSize();
-    window.addEventListener("resize", updateCanvasSize);
-
-    const cx = window.innerWidth / 2;
-    const cy = window.innerHeight / 2;
-
-    const particles = createParticles(HERO_LOCKUP.icon, cx, cy);
-    const nodes = createCompetencyNodes(window.innerWidth, window.innerHeight);
-
-    const pulses: SignalPulse[] = [
-      { fromNode: 0, toNode: 1, progress: 0.1, speed: 0.015 },
-      { fromNode: 1, toNode: 2, progress: 0.5, speed: 0.018 },
-      { fromNode: 2, toNode: 3, progress: 0.3, speed: 0.014 },
-      { fromNode: 3, toNode: 4, progress: 0.7, speed: 0.016 },
-      { fromNode: 4, toNode: 5, progress: 0.2, speed: 0.017 },
-      { fromNode: 5, toNode: 6, progress: 0.6, speed: 0.015 },
-    ];
-
-    sceneState.current.particles = particles;
-    sceneState.current.nodes = nodes;
-    sceneState.current.pulses = pulses;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    let animId = 0;
-    const startTime = performance.now();
-
-    const renderLoop = (currentTime: number) => {
-      const elapsed = currentTime - startTime;
-
-      // Update pulses
-      for (const pulse of sceneState.current.pulses) {
-        pulse.progress += pulse.speed;
-        if (pulse.progress > 1) {
-          pulse.progress = 0;
-          pulse.fromNode = Math.floor(Math.random() * nodes.length);
-          pulse.toNode =
-            (pulse.fromNode +
-              1 +
-              Math.floor(Math.random() * (nodes.length - 1))) %
-            nodes.length;
-        }
-      }
-
-      // Update shockwave if active
-      const sw = sceneState.current.shockwave;
-      if (sw.active && sw.alpha > 0.005) {
-        sw.radius += 5.5;
-        sw.alpha = Math.max(0, 1 - sw.radius / sw.maxRadius);
-      }
-
-      renderAnimeCanvas({
-        ctx,
-        width: window.innerWidth,
-        height: window.innerHeight,
-        particles: sceneState.current.particles,
-        nodes: sceneState.current.nodes,
-        pulses: sceneState.current.pulses,
-        time: elapsed,
-        assembleRatio: sceneState.current.assembleRatio,
-        shockwave: sceneState.current.shockwave,
-      });
-
-      animId = requestAnimationFrame(renderLoop);
-    };
-
-    animId = requestAnimationFrame(renderLoop);
-
-    return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener("resize", updateCanvasSize);
-    };
-  }, []);
-
-  // 2. Anime.js choreographed timeline:
-  // Phase A: 0 - 900ms: Particles converge to logo form + counter 0 -> 100%
-  // Phase B: 900ms: Shockwave expands + logo mark scales in
-  // Phase C: 1000ms: Company name "SkillStat" letters stagger in with Anime.js
-  // Phase D: 2200ms: Measure rect and trigger flight to navbar
-  useEffect(() => {
-    const particles = sceneState.current.particles;
-    if (!particles.length) return;
-
-    // Progress counter animation (0 to 100%)
-    const counterObj = { val: 0 };
-    const counterAnim = animate(counterObj, {
+    const counterAnim = animate(counterTarget, {
       val: 100,
-      duration: 1000,
-      ease: "outExpo",
-      onUpdate: () => setProgressPercent(Math.round(counterObj.val)),
-    });
-
-    // Particle convergence animation
-    const ratioObj = { ratio: 0 };
-    const ratioAnim = animate(ratioObj, {
-      ratio: 1,
-      duration: 900,
+      duration: 1200,
       ease: "outExpo",
       onUpdate: () => {
-        sceneState.current.assembleRatio = ratioObj.ratio;
+        setProgressPercent(Math.round(counterTarget.val));
       },
     });
 
-    const particlesAnim = animate(particles, {
-      x: (p: unknown) => (p as Particle).tx,
-      y: (p: unknown) => (p as Particle).ty,
-      delay: () => Math.random() * 280,
-      duration: 850,
-      ease: "outExpo",
-    });
-
-    // At 900ms: Trigger shockwave + reveal crisp logo mark
     const logoTimer = window.setTimeout(() => {
-      sceneState.current.shockwave = {
-        radius: 20,
-        maxRadius: 280,
-        alpha: 1,
-        active: true,
-      };
-
       if (logoImageRef.current) {
         animate(logoImageRef.current, {
           scale: [0.65, 1],
@@ -205,10 +84,8 @@ export default function LoadingOverlay({
           ease: "outBack(1.7)",
         });
       }
-    }, 900);
+    }, 300);
 
-    // At 1000ms: "company name comes after a sec"
-    // Stagger in each letter of "SkillStat" with iconic Anime.js bounce
     const nameTimer = window.setTimeout(() => {
       setStage("revealed");
 
@@ -229,35 +106,38 @@ export default function LoadingOverlay({
         delay: 450,
         ease: "outExpo",
       });
-    }, 1000);
+    }, 700);
 
-    // At 2300ms: Measure lockup position and start flight to navbar
     const flightTimer = window.setTimeout(() => {
       const lockupEl = lockupRef.current;
+
       if (lockupEl) {
-        const r = lockupEl.getBoundingClientRect();
+        const rect = lockupEl.getBoundingClientRect();
         setCloneRect({
-          left: r.left,
-          top: r.top,
-          width: r.width,
-          height: r.height,
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+          height: rect.height,
         });
       }
-      onDockingStart();
+
+      callbacksRef.current.onDockingStart();
       setStage("docking");
-    }, 2300);
+    }, 2000);
 
     return () => {
       counterAnim.pause();
-      ratioAnim.pause();
-      particlesAnim.pause();
       window.clearTimeout(logoTimer);
       window.clearTimeout(nameTimer);
       window.clearTimeout(flightTimer);
     };
-  }, [onDockingStart]);
+  }, []);
 
-  // 3. FLIP Flight animation to the navbar
+  /*
+   * FLIP flight animation. Depends only on stage/cloneRect so a
+   * parent re-render (new onFinished identity, etc.) can never
+   * restart an animation that's already mid-flight.
+   */
   useLayoutEffect(() => {
     if (stage !== "docking" || !cloneRect) return;
 
@@ -265,7 +145,7 @@ export default function LoadingOverlay({
     const target = navSlotRef.current;
 
     if (!clone || !target) {
-      onFinished();
+      callbacksRef.current.onFinished();
       return;
     }
 
@@ -280,35 +160,32 @@ export default function LoadingOverlay({
       scale: [1, scale],
       duration: 950,
       ease: "inOutQuint",
-      onComplete: onFinished,
+      onComplete: () => callbacksRef.current.onFinished(),
     });
 
     return () => {
       flightAnim.pause();
     };
-  }, [stage, cloneRect, navSlotRef, onFinished]);
+  }, [stage, cloneRect, navSlotRef]);
+
+  const handleSkip = useCallback(() => {
+    callbacksRef.current.onDockingStart();
+    callbacksRef.current.onFinished();
+  }, []);
 
   return (
     <>
-      {/* Fullscreen Backdrop & Anime.js Canvas */}
+      {/* Fullscreen loading overlay */}
       <div
         className={`fixed inset-0 z-[100] flex flex-col items-center justify-center bg-paper transition-opacity duration-700 ${
           stage === "docking" ? "pointer-events-none opacity-0" : "opacity-100"
         }`}
         aria-label="Loading SkillStat"
       >
-        {/* Fullscreen Canvas with geometric grid and neural competency filaments */}
-        <canvas
-          ref={canvasRef}
-          className="fixed inset-0 h-full w-full pointer-events-none"
-        />
-
-        {/* Ambient radial glow aura */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <div className="absolute left-1/2 top-1/2 h-[680px] w-[680px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-tr from-brand-100/60 via-cyan-50/40 to-transparent blur-3xl" />
         </div>
 
-        {/* Central Brand Lockup: Logo + Company Name */}
         {stage !== "docking" && (
           <div className="relative z-10 flex flex-col items-center">
             <div
@@ -316,7 +193,6 @@ export default function LoadingOverlay({
               className="inline-flex items-center select-none"
               style={{ gap: `${HERO_LOCKUP.gap}px` }}
             >
-              {/* Logo Mark container */}
               <div
                 className="relative"
                 style={{
@@ -324,7 +200,6 @@ export default function LoadingOverlay({
                   height: `${HERO_LOCKUP.icon}px`,
                 }}
               >
-                {/* Crisp brand logo image */}
                 <img
                   ref={logoImageRef}
                   src="/logo-mark-indigo.png"
@@ -340,10 +215,9 @@ export default function LoadingOverlay({
                 />
               </div>
 
-              {/* Company Name "SkillStat" with split-letter animation */}
               <div className="flex flex-col">
                 <div
-                  className="flex font-display font-bold tracking-tight text-ink overflow-hidden"
+                  className="flex overflow-hidden font-display font-bold tracking-tight text-ink"
                   style={{
                     fontSize: `${HERO_LOCKUP.text}px`,
                     lineHeight: 1.05,
@@ -363,15 +237,13 @@ export default function LoadingOverlay({
                   ))}
                 </div>
 
-                {/* AI Competency Subtitle badge */}
-                <div className="anime-badge opacity-0 mt-1 flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase text-brand-600">
+                <div className="anime-badge mt-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-brand-600 opacity-0">
                   <span className="h-1.5 w-1.5 rounded-full bg-accent-emerald animate-pulse" />
                   <span>AI Competency Intelligence</span>
                 </div>
               </div>
             </div>
 
-            {/* Bottom Progress Bar */}
             <div className="mt-8 flex flex-col items-center gap-2">
               <div className="h-1 w-48 overflow-hidden rounded-full bg-slate-200/90 shadow-inner">
                 <div
@@ -379,6 +251,7 @@ export default function LoadingOverlay({
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
+
               <span className="font-mono text-[11px] font-medium text-ink-faint">
                 {progressPercent < 100
                   ? `Synthesizing Competency Vectors · ${progressPercent}%`
@@ -388,24 +261,18 @@ export default function LoadingOverlay({
           </div>
         )}
 
-        {/* Quick Skip button */}
         <button
-          onClick={() => {
-            onDockingStart();
-            onFinished();
-          }}
-          className="absolute bottom-8 text-xs font-medium text-ink-faint transition-colors hover:text-ink hover:underline cursor-pointer"
+          onClick={handleSkip}
+          className="absolute bottom-8 cursor-pointer text-xs font-medium text-ink-faint transition-colors hover:text-ink hover:underline"
         >
           Skip intro
         </button>
       </div>
 
-      {/* The FLIP Flying Clone:
-          Translates and scales precisely from center to navbar slot with zero opacity drop during flight */}
       {stage === "docking" && cloneRect && (
         <div
           ref={cloneRef}
-          className="fixed z-[110] inline-flex items-center select-none"
+          className="fixed z-[110] inline-flex select-none items-center"
           style={{
             left: `${cloneRect.left}px`,
             top: `${cloneRect.top}px`,
@@ -428,6 +295,7 @@ export default function LoadingOverlay({
             className="select-none object-contain drop-shadow-[0_4px_16px_rgba(48,55,230,0.2)]"
             draggable={false}
           />
+
           <div className="flex flex-col">
             <span
               className="font-display font-bold tracking-tight text-ink"
