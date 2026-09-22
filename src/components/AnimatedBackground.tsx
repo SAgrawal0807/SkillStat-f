@@ -41,10 +41,7 @@ export default function AnimatedBackground() {
     const createNodes = () => {
       nodes.length = 0;
 
-      const count = Math.min(
-        70,
-        Math.max(25, Math.floor(width / 20))
-      );
+      const count = Math.min(70, Math.max(25, Math.floor(width / 20)));
 
       for (let i = 0; i < count; i++) {
         nodes.push({
@@ -52,7 +49,7 @@ export default function AnimatedBackground() {
           y: Math.random() * height,
           vx: (Math.random() - 0.5) * 0.25,
           vy: (Math.random() - 0.5) * 0.25,
-          radius: Math.random() * 1.5 + 0.5,
+          radius: Math.random() * 2 + 1.5, // was 1.5 + 0.5 → now 1.5–3.5px
         });
       }
     };
@@ -60,21 +57,15 @@ export default function AnimatedBackground() {
     const draw = () => {
       ctx.clearRect(0, 0, width, height);
 
-      // Move nodes
       nodes.forEach((node) => {
         node.x += node.vx;
         node.y += node.vy;
 
-        if (node.x <= 0 || node.x >= width) {
-          node.vx *= -1;
-        }
-
-        if (node.y <= 0 || node.y >= height) {
-          node.vy *= -1;
-        }
+        if (node.x <= 0 || node.x >= width) node.vx *= -1;
+        if (node.y <= 0 || node.y >= height) node.vy *= -1;
       });
 
-      // Draw connecting lines
+      // Connecting lines — stronger alpha
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const a = nodes[i];
@@ -82,38 +73,31 @@ export default function AnimatedBackground() {
 
           const dx = a.x - b.x;
           const dy = a.y - b.y;
-
           const distance = Math.sqrt(dx * dx + dy * dy);
 
           if (distance < 140) {
-            const opacity =
-              (1 - distance / 140) * 0.13;
+            const opacity = (1 - distance / 140) * 0.35; // was 0.13
 
             ctx.beginPath();
             ctx.moveTo(a.x, a.y);
             ctx.lineTo(b.x, b.y);
-
             ctx.strokeStyle = `rgba(99,102,241,${opacity})`;
-            ctx.lineWidth = 0.7;
+            ctx.lineWidth = 0.8;
             ctx.stroke();
           }
         }
       }
 
-      // Draw nodes
+      // Nodes — bigger, brighter, with a soft glow
       nodes.forEach((node) => {
         ctx.beginPath();
+        ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
 
-        ctx.arc(
-          node.x,
-          node.y,
-          node.radius,
-          0,
-          Math.PI * 2
-        );
-
-        ctx.fillStyle = "rgba(99,102,241,0.35)";
+        ctx.shadowColor = "rgba(99,102,241,0.9)";
+        ctx.shadowBlur = 6;
+        ctx.fillStyle = "rgba(99,102,241,0.9)"; // was 0.35
         ctx.fill();
+        ctx.shadowBlur = 0; // reset so it doesn't bleed into lines next frame
       });
 
       animationFrame = requestAnimationFrame(draw);
@@ -136,12 +120,11 @@ export default function AnimatedBackground() {
     };
 
     const animation = animate(pulse, {
-      opacity: [0.2, 0.6],
+      opacity: [0.5, 0.85], // was [0.2, 0.6]
       duration: 2800,
       ease: "inOutSine",
       alternate: true,
       loop: true,
-
       onUpdate: () => {
         canvas.style.opacity = `${pulse.opacity}`;
       },
@@ -150,10 +133,7 @@ export default function AnimatedBackground() {
     return () => {
       cancelAnimationFrame(animationFrame);
 
-      window.removeEventListener(
-        "resize",
-        handleResize
-      );
+      window.removeEventListener("resize", handleResize);
 
       animation.pause();
     };

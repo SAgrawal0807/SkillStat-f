@@ -16,70 +16,56 @@ export default function App() {
   const [introFinished, setIntroFinished] = useState(false);
 
   // Lenis smooth scrolling
-useEffect(() => {
-  const lenis = new Lenis({
-    duration: 1.2,
-    smoothWheel: true,
-    wheelMultiplier: 0.9,
-    touchMultiplier: 1.5,
-  });
+  useEffect(() => {
+    const lenis = new Lenis({
+      lerp: 0.08,
+      smoothWheel: true,
+      wheelMultiplier: 0.8,
+      touchMultiplier: 1.5,
+    });
 
-  let animationFrame: number;
+    let animationFrame: number;
 
-  // Lenis animation loop
-  const raf = (time: number) => {
-    lenis.raf(time);
+    const raf = (time: number) => {
+      lenis.raf(time);
+      animationFrame = requestAnimationFrame(raf);
+    };
+
     animationFrame = requestAnimationFrame(raf);
-  };
 
-  animationFrame = requestAnimationFrame(raf);
+    const handleAnchorClick = (event: MouseEvent) => {
+      const target = event.currentTarget as HTMLAnchorElement;
+      const href = target.getAttribute("href");
 
-  // Smooth anchor scrolling
-  const handleAnchorClick = (event: MouseEvent) => {
-    const target = event.currentTarget as HTMLAnchorElement;
-    const href = target.getAttribute("href");
+      if (!href || !href.startsWith("#")) return;
 
-    if (!href || !href.startsWith("#")) return;
+      const element = document.querySelector(href);
+      if (!element) return;
 
-    const element = document.querySelector(href);
+      event.preventDefault();
 
-    if (!element) return;
+      lenis.scrollTo(element as HTMLElement, {
+        duration: 1.5,
+        offset: 0,
+      });
+    };
 
-    event.preventDefault();
+    const anchors =
+      document.querySelectorAll<HTMLAnchorElement>('a[href^="#"]');
 
-    lenis.scrollTo(element as HTMLElement, {
-      duration: 1.2,
-      offset: 0,
-    });
-  };
-
-  // Find all internal anchor links
-  const anchors =
-    document.querySelectorAll<HTMLAnchorElement>(
-      'a[href^="#"]'
-    );
-
-  anchors.forEach((anchor) => {
-    anchor.addEventListener(
-      "click",
-      handleAnchorClick
-    );
-  });
-
-  // Cleanup
-  return () => {
     anchors.forEach((anchor) => {
-      anchor.removeEventListener(
-        "click",
-        handleAnchorClick
-      );
+      anchor.addEventListener("click", handleAnchorClick);
     });
 
-    cancelAnimationFrame(animationFrame);
+    return () => {
+      anchors.forEach((anchor) => {
+        anchor.removeEventListener("click", handleAnchorClick);
+      });
 
-    lenis.destroy();
-  };
-}, []);
+      cancelAnimationFrame(animationFrame);
+      lenis.destroy();
+    };
+  }, []);
 
   const handleDockingStart = useCallback(() => {
     setRevealed(true);
@@ -100,11 +86,7 @@ useEffect(() => {
         selection:text-brand-900
       "
     >
-      <Navbar
-        ref={navSlotRef}
-        revealed={revealed}
-        docked={docked}
-      />
+      <Navbar ref={navSlotRef} revealed={revealed} docked={docked} />
 
       <main>
         <Hero revealed={revealed} />
